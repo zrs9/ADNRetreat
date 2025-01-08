@@ -1,0 +1,56 @@
+# Ensure the module is imported
+Import-Module ActiveDirectory
+
+# Ask for AD credentials
+Write-Host "Please enter your Active Directory credentials."
+$userCreds = Get-Credential
+
+# Domain Controllers (correct any typos in DNS)
+$domainControllers = @("ENTERSERVERHERE", "SECONDENTERHERE")
+
+# Path to CSV (ensure correct path and file)
+$csvFilePath = "targetmachines.csv"
+
+# Read the CSV
+$hostEntries = Import-Csv -Path $csvFilePath
+
+# To hold results
+$resultTable = @()
+
+foreach ($hostEntry in $hostEntries) {
+    $hostname = $hostEntry.HostName
+    $found = $false
+    Write-Host "Processing hostname: $hostname"
+
+    foreach ($domainController in $domainControllers) {
+        try {
+            Write-Host "Querying domain controller: $domainController"
+            $computer = Get-ADComputer -Filter {Name -eq $hostname} -Properties CanonicalName -Server $domainController -Credential $userCreds
+
+            if ($computer -ne $null) {
+                $resultEntry = @{
+                    Hostname = $hostname
+                    Location = $computer.CanonicalName
+                }
+                $found = $true
+                Write-Host "Found $hostname at $($computer.CanonicalName)"
+                break
+            }
+        } catch {
+            Write-Warning "Error querying $hostname on $domainController: $($_.Exception.Message)"
+        }
+    }
+
+    if (-not $found) {
+        Write-Host "Hostname $hostname not found in any domain controller"
+        $resultEntry = @{
+            Hostname = $hostname
+            Location = 'error'
+        }
+    }
+
+    $resultTable += New-Object PSObject -Property $resultEntry
+}
+
+# Display results
+$resultTable | Format-Table -AutoSize
