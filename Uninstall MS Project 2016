@@ -1,0 +1,13 @@
+$remoteComputer = "HOSTNAME" #Hostname of target PC
+
+$credential = Get-Credential
+
+# Define the uninstall command using the parameters extracted from your output
+$uninstallCommand = {
+    Start-Process -FilePath "C:\Program Files\Common Files\Microsoft Shared\ClickToRun\OfficeClickToRun.exe" `
+                   -ArgumentList "scenario=install scenariosubtype=ARP sourcetype=None productstoremove=ProjectProXVolume.16_en-us_x-none culture=en-us" `
+                   -NoNewWindow -Wait
+}
+
+# Use Invoke-Command to run the uninstall process on the remote computer
+Invoke-Command -ComputerName $remoteComputer -ScriptBlock $uninstallCommand -Credential $credential
