@@ -1,0 +1,39 @@
+# Define product ID and language identifiers for Microsoft Project Professional 2016 and en-us
+$productID = "003B" # SKU for Microsoft Project Professional 2016
+$languageID = "0409" # Language ID for English (en-us)
+
+# Define registry paths
+$registryPaths = @(
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+)
+
+$targetProduct = "$productID-$languageID"
+
+foreach ($regPath in $registryPaths) {
+    # Get all subkeys in the uninstall registry location
+    $keys = Get-ChildItem -Path $regPath -ErrorAction SilentlyContinue
+
+    foreach ($key in $keys) {
+        try {
+            $guid = $key.PSChildName
+            $displayName = (Get-ItemProperty -Path $key.PSPath).DisplayName -ErrorAction SilentlyContinue
+            $uninstallString = (Get-ItemProperty -Path $key.PSPath).UninstallString -ErrorAction SilentlyContinue
+
+            # Using `-match` to check if the key matches the pattern for Microsoft Project Professional 2016 - en-us
+            if ($guid -match "^9[1-9A-F][0-9A-F]$productID-$languageID[0-9A-F]{8}1CE$") {
+                Write-Host "Found GUID: $guid"
+                Write-Host "Display Name: $displayName"
+                Write-Host "Uninstall String: $uninstallString"
+
+                # If the uninstall string exists, this could be used to perform the uninstallation
+                if (![string]::IsNullOrEmpty($uninstallString)) {
+                    # Uncomment the following line to perform the uninstallation
+                    # & cmd /c $uninstallString /quiet
+                }
+            }
+        } catch {
+            Write-Warning "Warning: Unable to process registry key: $guid"
+        }
+    }
+}
