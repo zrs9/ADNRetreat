@@ -1,0 +1,63 @@
+# Define the list of program names to search for
+$programsToCheck = @(
+    "Microsoft Visio - en-us",
+    "Microsoft Visio Standard 2013",
+    "Microsoft Visio Standard 2016",
+    "Microsoft Visio Standard 2016 - en-us",
+    "Microsoft Project - en-us",
+    "Microsoft Project Profesional 2016 - es-es",
+    "Microsoft Project Professional 2013",
+    "Microsoft Project Professional 2016 - en-us",
+    "Microsoft Project Professional 2019 - en-us",
+    "Microsoft Project Professional 2021 - en-us",
+    "Microsoft Project Standard 2013",
+    "Microsoft Project Standard 2016",
+    "Microsoft Project Standard 2016 - en-us",
+    "Microsoft Project Standard 2016 - es-es"
+)
+
+# Define the remote host name
+$remoteComputerName = "HOSTNAME" # Replace with the target machine's name
+
+# Define the script block to run on the remote computer
+$scriptBlock = {
+    param($programs)
+    
+    # Define the registry paths to search for installed applications
+    $registryPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+    )
+    
+    $installedPrograms = @()
+
+    foreach ($regPath in $registryPaths) {
+        $keys = Get-ChildItem -Path $regPath -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -ne 'Default' }
+        foreach ($key in $keys) {
+            $displayName = (Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction SilentlyContinue).DisplayName
+            if ($programs -contains $displayName) {
+                $guid = $key.PSChildName
+                $installedPrograms += [PSCustomObject]@{
+                    DisplayName = $displayName
+                    GUID = $guid
+                }
+            }
+        }
+    }
+
+    return $installedPrograms
+}
+
+try {
+    # Execute the script block on the remote machine and capture the result
+    $result = Invoke-Command -ComputerName $remoteComputerName -ScriptBlock $scriptBlock -ArgumentList $programsToCheck -Credential (Get-Credential)
+
+    # Display the results
+    if ($result) {
+        $result | Format-Table -AutoSize
+    } else {
+        Write-Host "No specified programs were found on $remoteComputerName."
+    }
+} catch {
+    Write-Error "An error occurred while querying the remote machine: $_"
+}
